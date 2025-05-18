@@ -1,39 +1,70 @@
-from langchain.chat_models import ChatOpenAI
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.vectorstores import FAISS
-from langchain.chains import RetrievalQA
-from langchain.document_loaders import TextLoader
-from langchain.text_splitter import CharacterTextSplitter
+from transformers import RagTokenizer, RagRetriever, RagSequenceForGeneration
+import torch
 
-import os
+# Load RAG components: Tokenizer, Retriever, Model
+tokenizer = RagTokenizer.from_pretrained("facebook/rag-token-nq")
+retriever = RagRetriever.from_pretrained("facebook/rag-token-nq", index_name="custom", use_dummy_dataset=True)
+model = RagSequenceForGeneration.from_pretrained("facebook/rag-token-nq")
 
-# Set your OpenAI API key
-os.environ["OPENAI_API_KEY"] = "AIzaSyDRcPvToWmH3a5jMrova8vG8t349JVvx8c"
+# Function to create FAISS index (optional, if using custom dataset)
+def create_faiss_index():
+    retriever.index.set_faiss_index(torch.randn(512, 768))  # Random for illustration
 
-# 1. Load and split your documents
-loader = TextLoader("docs/my_knowledge.txt")  # Load your custom knowledge
-documents = loader.load()
-text_splitter = CharacterTextSplitter(chunk_size=500, chunk_overlap=50)
-docs = text_splitter.split_documents(documents)
+create_faiss_index()
 
-# 2. Create vector store
-embeddings = OpenAIEmbeddings()
-db = FAISS.from_documents(docs, embeddings)
+# Chatbot function using RAG
+def rag_chatbot(input_text: str):
+    input_ids = tokenizer(input_text, return_tensors="pt").input_ids  # Tokenize user input
+    retriever_outputs = retriever(input_ids=input_ids, return_tensors="pt")  # Retrieve relevant documents
+    generated_ids = model.generate(
+        input_ids=input_ids, 
+        context_input_ids=retriever_outputs.context_input_ids,
+        context_attention_mask=retriever_outputs.context_attention_mask,
+        max_length=200
+    )  # Generate response
+    return tokenizer.decode(generated_ids[0], skip_special_tokens=True)
 
-# 3. Set up retriever
-retriever = db.as_retriever()
+# Running the chatbot
+if __name__ == "__main__":
+    print("Hello! I'm a RAG-based chatbot. Type 'exit' to end.")
+    while True:
+        user_input = input("You: ")
+        if user_input.lower() == "exit":
+            print("Goodbye!")
+            break
+        print(f"Bot: {rag_chatbot(user_input)}")
+from transformers import RagTokenizer, RagRetriever, RagSequenceForGeneration
+import torch
 
-# 4. Create RAG chain
-rag_chain = RetrievalQA.from_chain_type(
-    llm=ChatOpenAI(model_name="gpt-4", temperature=0),
-    retriever=retriever,
-    return_source_documents=True
-)
+# Load RAG components: Tokenizer, Retriever, Model
+tokenizer = RagTokenizer.from_pretrained("facebook/rag-token-nq")
+retriever = RagRetriever.from_pretrained("facebook/rag-token-nq", index_name="custom", use_dummy_dataset=True)
+model = RagSequenceForGeneration.from_pretrained("facebook/rag-token-nq")
 
-# 5. Run chatbot loop
-while True:
-    query = input("You: ")
-    if query.lower() in ["exit", "quit"]:
-        break
-    result = rag_chain({"query": query})
-    print("\nBot:", result['result'])
+# Function to create FAISS index (optional, if using custom dataset)
+def create_faiss_index():
+    retriever.index.set_faiss_index(torch.randn(512, 768))  # Random for illustration
+
+create_faiss_index()
+
+# Chatbot function using RAG
+def rag_chatbot(input_text: str):
+    input_ids = tokenizer(input_text, return_tensors="pt").input_ids  # Tokenize user input
+    retriever_outputs = retriever(input_ids=input_ids, return_tensors="pt")  # Retrieve relevant documents
+    generated_ids = model.generate(
+        input_ids=input_ids, 
+        context_input_ids=retriever_outputs.context_input_ids,
+        context_attention_mask=retriever_outputs.context_attention_mask,
+        max_length=200
+    )  # Generate response
+    return tokenizer.decode(generated_ids[0], skip_special_tokens=True)
+
+# Running the chatbot
+if __name__ == "__main__":
+    print("Hello! I'm a RAG-based chatbot. Type 'exit' to end.")
+    while True:
+        user_input = input("You: ")
+        if user_input.lower() == "exit":
+            print("Goodbye!")
+            break
+        print(f"Bot: {rag_chatbot(user_input)}")

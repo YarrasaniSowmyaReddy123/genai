@@ -1,41 +1,41 @@
-import streamlit as st
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
+pip install langchain openai faiss-cpu tiktoken
+pip install transformers accelerate
+from langchain.chat_models import ChatOpenAI
+from langchain.embeddings import OpenAIEmbeddings
+from langchain.vectorstores import FAISS
+from langchain.chains import RetrievalQA
+from langchain.document_loaders import TextLoader
+from langchain.text_splitter import CharacterTextSplitter
 
 import os
-os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
 
-# Initialize the LLM
-llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash")
+# Set your OpenAI API key
+os.environ["OPENAI_API_KEY"] = "your-openai-api-key"
 
-# Set up Streamlit page
-st.set_page_config(page_title="Gemini Chatbot", layout="centered")
-st.title("🤖 Gemini Chatbot with Memory")
+# 1. Load and split your documents
+loader = TextLoader("docs/my_knowledge.txt")  # Load your custom knowledge
+documents = loader.load()
+text_splitter = CharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+docs = text_splitter.split_documents(documents)
 
-# Initialize chat history in session state
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = [
-        SystemMessage(content="You are a helpful assistant.")
-    ]
+# 2. Create vector store
+embeddings = OpenAIEmbeddings()
+db = FAISS.from_documents(docs, embeddings)
 
-# Display past messages
-for msg in st.session_state.chat_history:
-    if isinstance(msg, HumanMessage):
-        st.chat_message("user").markdown(msg.content)
-    elif isinstance(msg, AIMessage):
-        st.chat_message("assistant").markdown(msg.content)
+# 3. Set up retriever
+retriever = db.as_retriever()
 
-# User input
-user_input = st.chat_input("Say something...")
-if user_input:
-    # Append user message
-    st.session_state.chat_history.append(HumanMessage(content=user_input))
-    st.chat_message("user").markdown(user_input)
+# 4. Create RAG chain
+rag_chain = RetrievalQA.from_chain_type(
+    llm=ChatOpenAI(model_name="gpt-4", temperature=0),
+    retriever=retriever,
+    return_source_documents=True
+)
 
-    # Get response from Gemini
-    result = llm.invoke(st.session_state.chat_history)
-    response = result.content
-
-    # Append AI response
-    st.session_state.chat_history.append(AIMessage(content=response))
-    st.chat_message("assistant").markdown(response)
+# 5. Run chatbot loop
+while True:
+    query = input("You: ")
+    if query.lower() in ["exit", "quit"]:
+        break
+    result = rag_chain({"query": query})
+    print("\nBot:", result['result'])

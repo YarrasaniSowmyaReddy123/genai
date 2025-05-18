@@ -8,7 +8,7 @@ from langchain.text_splitter import CharacterTextSplitter
 import os
 
 # Set your OpenAI API key
-os.environ["OPENAI_API_KEY"] = "your-openai-api-key"
+os.environ["OPENAI_API_KEY"] = "AIzaSyDRcPvToWmH3a5jMrova8vG8t349JVvx8c"
 
 # 1. Load and split your documents
 loader = TextLoader("docs/my_knowledge.txt")  # Load your custom knowledge

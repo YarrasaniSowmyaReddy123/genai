@@ -1,4 +1,2 @@
-LangChain is a framework for building applications with LLMs.
-RAG stands for Retrieval-Augmented Generation...
-
-
+streamlit
+pip install transformers faiss-cpu torch
